@@ -28,8 +28,9 @@ The application displays three panels: **Original Grayscale**, **Noisy Image**, 
 ### **Installation**
 
 1. **Clone the Repository:**  
-   git clone git@github.com:vlarobbyk/ESP32-XIAO-S3-Flask-Server.git  
-   cd ESP32-XIAO-S3-Flask-Server
+   git clone [git@github.com:vlarobbyk/ESP32-XIAO-S3-Flask-Server.git  
+   cd ESP32-XIAO-S3-Flask-Server](git@github.com:vlarobbyk/ESP32-XIAO-S3-Flask-Server.git  
+   cd ESP32-XIAO-S3-Flask-Server)
 
 2. Install Dependencies:  
    This project requires Flask, OpenCV, NumPy, requests, and PyTorch. It is highly recommended to use a virtual environment.  
@@ -40,7 +41,7 @@ The application displays three panels: **Original Grayscale**, **Noisy Image**, 
 Open app.py and update the stream details:
 
 \# app.py  
-\_URL \= 'http://\[YOUR\_ESP32\_IP\_ADDRESS\]' \# e.g., '\[http://192.168.1.100\](http://192.168.1.100)'  
+\_URL \= 'http://\[YOUR\_ESP32\_IP\_ADDRESS\]' \# e.g., '[http://192.168.1.100](http://192.168.1.100)'
 \_PORT \= '81'                           \# Default, change if necessary
 
 ### **Running the Server**
