@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Control de Ruido</title>
+
+    <style>
+        body {
+            background: #f1f1bc;
+            font-family: Arial;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        .card {
+            width: 60%;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+
+        .slider-group {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        input[type=range] {
+            width: 100%;
+        }
+
+        label {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #video-frame {
+            margin-top: 20px;
+            border: 4px solid black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Control de Ruido – ESP32-CAM</h1>
+
+    <div class="card">
+        <div class="slider-group">
+            <label>Media Ruido Gaussiano: <span id="label_mean">0</span></label>
+            <input type="range" id="mean" min="-50" max="50" value="0">
+        </div>
+
+        <div class="slider-group">
+            <label>Desviación Estándar Gaussiano: <span id="label_std">10</span></label>
+            <input type="range" id="std" min="1" max="80" value="10">
+        </div>
+
+        <div class="slider-group">
+            <label>Varianza Ruido Speckle: <span id="label_var">0.10</span></label>
+            <input type="range" id="var" min="1" max="100" value="10">
+        </div>
+
+        <button onclick="resetSliders()" style="padding:10px 20px;font-size:16px;">Restablecer</button>
+    </div>
+
+    <img id="video-frame" src="{{ url_for('video_noise_stream') }}" width="70%">
+
+    <script>
+        function updateLabels() {
+            document.getElementById("label_mean").innerText = document.getElementById("mean").value;
+            document.getElementById("label_std").innerText  = document.getElementById("std").value;
+            document.getElementById("label_var").innerText  =
+                (document.getElementById("var").value / 100).toFixed(2);
+        }
+
+        function sendParams() {
+            let data = {
+                mean: parseFloat(mean.value),
+                std: parseFloat(std.value),
+                var: parseFloat(varSlider.value) / 100
+            };
+
+            fetch("/update_noise_params", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+        }
+
+        const mean = document.getElementById("mean");
+        const std  = document.getElementById("std");
+        const varSlider = document.getElementById("var");
+
+        mean.oninput = () => { updateLabels(); sendParams(); };
+        std.oninput  = () => { updateLabels(); sendParams(); };
+        varSlider.oninput = () => { updateLabels(); sendParams(); };
+
+        updateLabels();
+
+        function resetSliders() {
+            mean.value = 0;
+            std.value = 10;
+            varSlider.value = 10;
+            updateLabels();
+            sendParams();
+        }
+    </script>
+
+</body>
+</html>
