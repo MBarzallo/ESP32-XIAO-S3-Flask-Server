@@ -1,63 +1,150 @@
-# **🌐 ESP32-XIAO-S3 Flask Video Processing Server**
+# ESP32-XIAO-S3 / ESP32-CAM – Flask Video Processing Server
 
-This repository contains a simple Python Flask server for streaming video from an ESP32-CAM (or ESP32-XIAO-S3) module, applying real-time noise simulation (Salt Noise), and performing image filtering using **PyTorch's 2D Convolution** (F.conv2d).
+Este repositorio contiene una aplicación web desarrollada con **Python + Flask** para procesar en tiempo real el video capturado por un módulo **ESP32-CAM** o **ESP32-XIAO-S3**.  
+La plataforma implementa técnicas fundamentales de **visión por computador**, incluyendo:
 
-The project demonstrates the critical steps for successful interoperability between OpenCV (image capture/display) and PyTorch (tensor-based filtering), ensuring proper data types and value ranges are maintained.
+- Sustracción de fondo por mediana  
+- Generación de ruido Gaussiano y Speckle  
+- Filtros de reducción de ruido (OpenCV + PyTorch)  
+- Detección de bordes (Canny y Sobel)  
+- Operaciones morfológicas aplicadas a imágenes médicas  
 
-## **✨ Features**
+---
 
-* **Real-time Video Streaming** via Flask (MJPEG format).  
-* **Frame Processing Pipeline** combining OpenCV, NumPy, and PyTorch.  
-* **Salt Noise Simulation** added to the grayscale video frames.  
-* **Linear Filtering** applied using a **Normalized Mean Filter** (implemented with F.conv2d and a $3\\times3$ kernel).  
-* Correct handling of float32 convolution output to prevent image saturation/artifacts.
+## ✨ Características Principales
 
-## **🖼️ Application Screenshot**
+### ✔️ 1. Streaming en Tiempo Real
+La aplicación recibe un stream MJPEG vía HTTP y muestra un panel compuesto por:
 
-The application displays three panels: **Original Grayscale**, **Noisy Image**, and **Filtered Output**.
+- Imagen original  
+- Fondo estimado  
+- Máscara binaria  
+- HistEq  
+- CLAHE  
+- Filtro Bilateral  
+- Resultado del foreground  
 
-![A screenshot of the web-server running. The left-side shows the original image, the center the noisy image (salt noise) and the right-side image shows the result of applying a kernel of 3x3 in PyTorch.](./static/Screenshot_20251108_171053.png)
+Todo en una cuadrícula organizada 3×3.
 
-## **🚀 Setup Guide**
+---
 
-### **Prerequisites**
+### ✔️ 2. Sustracción de Fondo (Background Subtraction)
 
-1. **ESP32-CAM/XIAO-S3:** The module must be running firmware that serves an MJPEG stream (e.g., using the CameraWebServer example from the Arduino ESP32 library).  
-2. **IP Address:** The ESP32's IP address must be known and updated in the app.py file.
+El fondo se calcula mediante la **mediana de 40 fotogramas**, usando un buffer FIFO (`deque`).
 
-### **Installation**
+Flujo aplicado:
+1. Acumular frames
+2. Calcular mediana
+3. Aplicar desenfoque Gaussiano
+4. Obtener diferencia absoluta
+5. Umbral adaptativo basado en media
+6. Apertura + Cierre + Dilatación
+7. Aplicación de la máscara al frame original
 
-1. **Clone the Repository:**  
-   git clone [https://github.com/vlarobbyk/ESP32-XIAO-S3-Flask-Server.git](https://github.com/vlarobbyk/ESP32-XIAO-S3-Flask-Server.git)
+---
 
-2. Install Dependencies:  
-   This project requires Flask, OpenCV, NumPy, requests, and PyTorch. It is highly recommended to use a virtual environment.  
-   pip install Flask opencv-python numpy requests torch
+### ✔️ 3. Simulación de Ruido + Filtros
 
-### **Configuration**
+El sistema permite simular ruido agregando:
 
-Open app.py and update the stream details:
+- Ruido **Gaussiano**  
+- Ruido **Speckle**  
 
-\# app.py  
+Parámetros ajustables desde Flask:
+- Media (mean)  
+- Desviación estándar (std)  
+- Varianza Speckle  
+
+Filtros aplicados:
+- Mediana 5×5  
+- Gaussiano 7×7  
+- Blur 7×7  
+- **Filtro personalizado en PyTorch**  
+- Canny  
+- Sobel  
+
+Kernel usado en PyTorch:
 
 ```python
-_URL = 'http://[YOUR_ESP32_IP_ADDRESS]' # e.g., 'http://192.168.1.100'
-_PORT = '81' # Default, change if necessary
+kernel = [
+    [0, -1/5, 0],
+    [-1/5, 2.2, -1/5],
+    [0, -1/5, 0]
+]
 ```
 
-### **Running the Server**
+---
 
-Execute the Python script:
+### ✔️ 4. Operaciones Morfológicas (Imágenes Médicas)
 
-```bash
-python app.py
+A tres imágenes médicas se les aplican:
+
+- Erosión  
+- Dilatación  
+- Top Hat  
+- Black Hat  
+- Mejoramiento: `img + (tophat - blackhat)`  
+
+Se prueban **tres tamaños de kernel**:
+
+- 15×15  
+- 25×25  
+- 37×37  
+
+Los resultados se organizan en un panel de **3 filas × 5 columnas** para fácil comparación.
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+/static
+    /medicas
+    /templates
+app.py
+background.py
+README.md
 ```
 
-The application will be accessible at http://127.0.0.1:5000/.
 
-## **⚙️ Key Filtering Details (PyTorch & OpenCV Interop)**
 
-The core logic for stable image filtering lies in these data handling steps:
+---
 
-1. **Kernel Normalization:** The $3\\times3$ kernel (torch.ones(3, 3)) is divided by $9.0$ before being used in F.conv2d. This prevents the convolution sum from exceeding the original pixel range (0-255).  
-2. **Type Conversion:** The floating-point output from PyTorch's convolution is converted back to an 8-bit integer array suitable for display using the robust OpenCV function: cv2.convertScaleAbs(). This function correctly handles the necessary clipping and type casting.
+## 🧪 Rutas Disponibles
+
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Panel de sustracción de fondo |
+| `/video_stream` | Stream procesado (filtros básicos) |
+| `/ruido` | Controles de ruido y filtros |
+| `/video_noise_stream` | Stream con ruido + filtros |
+| `/morfologia` | Selección de imágenes médicas |
+| `/morfologia_process/<imagen>` | Procesamiento morfológico |
+
+---
+
+## 🔧 Tecnologías Utilizadas
+
+- Python 3.x  
+- Flask  
+- OpenCV  
+- NumPy  
+- PyTorch  
+- ESP32-CAM / ESP32-XIAO-S3  
+
+---
+
+## 🔗 Repositorio en GitHub
+
+https://github.com/MBarzallo/ESP32-XIAO-S3-Flask-Server
+
+---
+
+## 🧑‍🏫 Información Académica
+
+- **Materia:** Visión por Computador  
+- **Universidad:** Universidad Politécnica Salesiana (UPS) – Sede Cuenca  
+- **Docente:** Ing. Vladimir Robles  
+- **Autores:** Mateo Barzallo, Karen Quito  
+
+---
